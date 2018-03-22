@@ -1,0 +1,5 @@
+---
+scenarios:
+  get-requests:
+    requests:
+      - https://cavepot.com
