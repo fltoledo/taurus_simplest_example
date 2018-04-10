@@ -2,4 +2,4 @@
 scenarios:
   get-requests:
     requests:
-      - https://cavepot.com
+      - https://example.com
