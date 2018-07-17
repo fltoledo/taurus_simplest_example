@@ -1,0 +1,572 @@
+---
+execution:
+  scenario: CheckOut_With_CC
+  concurrency: 1
+  iterations: 1
+  hold-for: 15m
+  ramp-up: 15s
+  
+modules:
+  jmeter:
+    properties:
+      pwd: 'Perf12345'
+      server: 'dece08b0.ngrok.io'
+      nonce: 'fake-valid-visa-nonce'
+      
+scenarios:  
+  CheckOut_With_CC:
+  
+    retrieve-resources: false 
+    follow-redirects: true  
+    
+      
+    headers:
+      Upgrade-Insecure-Requests: '1'
+      User-Agent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/65.0.3325.181 Safari/537.36'
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8'
+      Accept-Encoding: 'gzip, deflate, br'
+      Accept-Language: 'es-ES,es;q=0.9'
+      
+    data-sources:
+      - delimiter: ','
+        loop: true
+        path: ./search.csv
+        quoted: false
+        variable-names: search_key
+
+     
+    requests:
+
+      #HOME PAGE
+      - url: 'https://${__P(server)}/'
+        method: GET
+        label: 'https://${__P(server)}/'
+        extract-regexp:
+          csrfToken: 
+            regexp: name="_csrf_token" .*? value="(.*?)"
+            default: NOT_FOUND
+            match-no: 1
+            template: $1$
+        assert:
+          - contains: 
+            - head-toolbar__logo-img-large
+            regexp: false
+          
+      #SIGN UP    
+      - url: 'https://${__P(server)}/users'
+        method: POST
+        label: 'https://${__P(server)}/users'
+        headers:
+          Accept: 'application/json, text/javascript, */*; q=0.01'
+          Origin: 'https://${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          X-Requested-With: XMLHttpRequest
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: 'https://${__P(server)}/'
+        body:
+          _csrf_token: ${csrfToken}
+          _utf8: ✓
+          'user[email]': perf${__UUID()}@abstracta.us
+          'user[friendbuy_code]': ''
+          'user[password]': ${__P(pwd)}
+          'user[password_confirmation]': ${__P(pwd)}  
+        assert: 
+          - contains: 
+            - welcome
+            regexp: false   
+        think-time: 3s 
+          
+         
+      #SEARCH AVAILABLE PRODUCTS
+      - url: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        method: GET
+        label: https://${__P(server)}/products?keywords=${search_key}&availability=1  
+        extract-regexp:
+          prod: 
+            default: NOT_FOUND
+            match-no: -1
+            regexp: data-product-id="(\d*)" href="\/products\/(.*?)">
+            template: $1$2$
+        headers:
+          Referer: 'https://${__P(server)}/welcome'
+        assert: 
+          - contains: 
+            - plp-description__title__results-for
+            regexp: false
+        think-time: 2s
+          
+   
+
+
+
+
+      #PRODUCT 1
+
+      #ACCESS TO ONE RANDOM PDP PAGE
+      - url: https://${__P(server)}/products/${prod_1_g2}
+        method: GET
+        label: https://${__P(server)}/products/${prod_1_g2}
+        headers:
+          Referer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - Add To Bag
+            regexp: false
+        think-time: 5s
+          
+
+      #ADD THE PRODUCT TO THE BAG
+      - url: https://${__P(server)}/header?_=1523371976896
+        method: GET
+        label: https://${__P(server)}/header?_=1523371976896
+        extract-regexp:
+          csrfToken: 
+            regexp: updateCsrfToken\("(.*?)"\)
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$
+        headers:
+          Content-Type: 'application/x-www-form-urlencoded; charset=UTF-8'
+          Referer: https://${__P(server)}/products/${prod_1_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+        think-time: 4s
+         
+      - url: 'https://${__P(server)}/orders/populate.json'
+        method: POST
+        label: 'https://${__P(server)}/orders/populate.json'        
+        headers:
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: https://${__P(server)}/products/${prod_1_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+          Pragma: 'no-cache'
+          Cache-Control: 'no-cache'
+          Accept-Encoding: 'gzip, deflate'
+        body:
+          product_id: ${prod_1_g1}
+          sale_id: ''
+          referrer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - js-header-cart-menu
+            regexp: false
+        
+
+
+
+
+
+
+      #PRODUCT 2
+
+      #ACCESS TO ONE RANDOM PDP PAGE
+      - url: https://${__P(server)}/products/${prod_2_g2}
+        method: GET
+        label: https://${__P(server)}/products/${prod_2_g2}
+        headers:
+          Referer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - Add To Bag
+            regexp: false
+        think-time: 5s
+          
+
+      #ADD THE PRODUCT TO THE BAG
+      - url: https://${__P(server)}/header?_=1523371976896
+        method: GET
+        label: https://${__P(server)}/header?_=1523371976896
+        extract-regexp:
+          csrfToken: 
+            regexp: updateCsrfToken\("(.*?)"\)
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$        
+        headers:
+          Content-Type: 'application/x-www-form-urlencoded; charset=UTF-8'
+          Referer: https://${__P(server)}/products/${prod_2_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+        think-time: 4s
+         
+      - url: 'https://${__P(server)}/orders/populate.json'
+        method: POST
+        label: 'https://${__P(server)}/orders/populate.json'        
+        headers:
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: https://${__P(server)}/products/${prod_2_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+          Pragma: 'no-cache'
+          Cache-Control: 'no-cache'
+          Accept-Encoding: 'gzip, deflate'
+        body:
+          product_id: ${prod_2_g1}
+          sale_id: ''
+          referrer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - js-header-cart-menu
+            regexp: false
+        
+
+
+
+
+
+      #PRODUCT 3
+
+      #ACCESS TO ONE RANDOM PDP PAGE
+      - url: https://${__P(server)}/products/${prod_3_g2}
+        method: GET
+        label: https://${__P(server)}/products/${prod_3_g2}
+        headers:
+          Referer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - Add To Bag
+            regexp: false
+        think-time: 5s
+          
+
+      #ADD THE PRODUCT TO THE BAG
+      - url: https://${__P(server)}/header?_=1523371976896
+        method: GET
+        label: https://${__P(server)}/header?_=1523371976896
+        extract-regexp:
+          csrfToken:
+            regexp: updateCsrfToken\("(.*?)"\)
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$
+        headers:
+          Content-Type: 'application/x-www-form-urlencoded; charset=UTF-8'
+          Referer: https://${__P(server)}/products/${prod_3_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+        think-time: 4s
+         
+      - url: 'https://${__P(server)}/orders/populate.json'
+        method: POST
+        label: 'https://${__P(server)}/orders/populate.json'        
+        headers:
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: https://${__P(server)}/products/${prod_3_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+          Pragma: 'no-cache'
+          Cache-Control: 'no-cache'
+          Accept-Encoding: 'gzip, deflate'
+        body:
+          product_id: ${prod_3_g1}
+          sale_id: ''
+          referrer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - js-header-cart-menu
+            regexp: false
+        
+
+
+
+      #PRODUCT 4
+
+      #ACCESS TO ONE RANDOM PDP PAGE
+      - url: https://${__P(server)}/products/${prod_4_g2}
+        method: GET
+        label: https://${__P(server)}/products/${prod_4_g2}
+        headers:
+          Referer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - Add To Bag
+            regexp: false
+        think-time: 5s
+          
+
+      #ADD THE PRODUCT TO THE BAG
+      - url: https://${__P(server)}/header?_=1523371976896
+        method: GET
+        label: https://${__P(server)}/header?_=1523371976896
+        extract-regexp:
+          csrfToken: 
+            regexp: updateCsrfToken\("(.*?)"\)
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$
+        headers:
+          Content-Type: 'application/x-www-form-urlencoded; charset=UTF-8'
+          Referer: https://${__P(server)}/products/${prod_4_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+        think-time: 4s
+         
+      - url: 'https://${__P(server)}/orders/populate.json'
+        method: POST
+        label: 'https://${__P(server)}/orders/populate.json'        
+        headers:
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: https://${__P(server)}/products/${prod_4_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+          Pragma: 'no-cache'
+          Cache-Control: 'no-cache'
+          Accept-Encoding: 'gzip, deflate'
+        body:
+          product_id: ${prod_4_g1}
+          sale_id: ''
+          referrer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - js-header-cart-menu
+            regexp: false 
+
+
+
+
+
+
+      #PRODUCT 5
+
+      #ACCESS TO ONE RANDOM PDP PAGE
+      - url: https://${__P(server)}/products/${prod_5_g2}
+        method: GET
+        label: https://${__P(server)}/products/${prod_5_g2}
+        headers:
+          Referer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert: 
+          - contains: 
+            - Add To Bag
+            regexp: false
+        think-time: 5s
+          
+
+      #ADD THE PRODUCT TO THE BAG
+      - url: https://${__P(server)}/header?_=1523371976896
+        method: GET
+        label: https://${__P(server)}/header?_=1523371976896
+        extract-regexp:
+          csrfToken: 
+            regexp: updateCsrfToken\("(.*?)"\)
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$ 
+        headers:
+          Content-Type: 'application/x-www-form-urlencoded; charset=UTF-8'
+          Referer: https://${__P(server)}/products/${prod_5_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+        think-time: 4s
+         
+      - url: 'https://${__P(server)}/orders/populate.json'
+        method: POST
+        label: 'https://${__P(server)}/orders/populate.json'        
+        headers:
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: https://${__P(server)}/products/${prod_5_g2}
+          Host: '${__P(server)}'
+          X-CSRF-Token: ${csrfToken}
+          Accept: '*/*'
+          X-Requested-With: 'XMLHttpRequest'
+          Connection: 'keep-alive'
+          Pragma: 'no-cache'
+          Cache-Control: 'no-cache'
+          Accept-Encoding: 'gzip, deflate'
+        body:
+          product_id: ${prod_5_g1}
+          sale_id: ''
+          referrer: https://${__P(server)}/products?keywords=${search_key}&availability=1
+        assert:
+          - contains: 
+            - js-header-cart-menu
+            regexp: false 
+            
+           
+
+
+
+
+      #SHIPPING OPTIONS
+      - url: 'https://${__P(server)}/phoenix/checkout/shipping'
+        method: GET
+        label: 'https://${__P(server)}/phoenix/checkout/shipping'
+        extract-regexp:
+            csrfToken: 
+              regexp: name="_csrf_token" .*? value="(.*?)"
+              default: NOT_FOUND
+              match-no: 1 
+              template: $1$
+        headers: {}
+
+      - url: 'https://${__P(server)}/phoenix/checkout/shipping'
+        method: POST
+        label: 'https://${__P(server)}/phoenix/checkout/shipping'
+        extract-regexp:
+          csrfToken: 
+            regexp: name="_csrf_token" .*? value="(.*?)"
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$    
+        headers:
+          X-Requested-With: XmlHttpRequest
+          X-CSRF-Token: ${csrfToken}
+          Host: '${__P(server)}'
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Accept: '*/*'
+          Pragma: 'no-cache'
+          Cache-Control: 'no-cache'
+          Referer: 'https://${__P(server)}/phoenix/checkout/shipping'
+          Accept-Encoding: 'gzip, deflate'
+        body:
+          _csrf_token: ${csrfToken}
+          _dirty: 'false'
+          _method: patch
+          _utf8: ✓
+          'address[address1]': '55 Francisco Street, 6th Floor'
+          'address[address2]': ''
+          'address[city]': San Francisco
+          'address[country]': USA
+          'address[first_name]': Dexter
+          'address[id]': ''
+          'address[last_name]': Holland
+          'address[phone]': '4155551212'
+          'address[postal_code]': '94133'
+          'address[region]': CA
+        extract-regexp:
+           ship_id: 
+             regexp: id="shipment_shipment_id" .*? value="(.*?)"
+             default: NOT_FOUND
+             match-no: 1
+             template: $1$
+        think-time: 10s  
+          
+          
+      #DELIVERY OPTIONS
+      - url: 'https://${__P(server)}/phoenix/checkout/delivery'
+        method: GET
+        label: 'https://${__P(server)}/phoenix/checkout/delivery'
+        headers:
+          Accept: 'text/html, */*; q=0.01'
+          X-Requested-With: XMLHttpRequest
+          X-PJAX: 'true'
+          X-PJAX-Container: '[role="main"]'
+          Content-Type: application/x-www-form-urlencoded; charset=UTF-8
+          Referer: 'https://${__P(server)}/phoenix/checkout/shipping'
+        body:
+          _pjax: '[role="main"]'
+        extract-regexp:
+           ship_id: 
+             regexp: id="shipment_shipment_id" .*? value="(.*?)"
+             default: NOT_FOUND
+             match-no: 1
+             template: $1$
+        assert: 
+          - contains: 
+            - Payment Options
+            regexp: false            
+    
+      - url: 'https://${__P(server)}/phoenix/checkout/delivery'
+        method: POST
+        label: 'https://${__P(server)}/phoenix/checkout/delivery' 
+        extract-regexp:
+          csrfToken: 
+            regexp: name="_csrf_token" .*? value="(.*?)"
+            default: NOT_FOUND
+            match-no: 1 
+            template: $1$
+        headers:
+          Origin: 'https://${__P(server)}'
+          Content-Type: application/x-www-form-urlencoded
+          Referer: 'https://${__P(server)}/phoenix/checkout/delivery'
+        body:
+          _csrf_token: ${csrfToken}
+          _method: patch
+          _utf8: ✓
+          'addons[consignment_kit]': 'false'
+          'addons[gift_box]': 'false'
+          'shipment[shipment_id]': ${ship_id}
+          'shipment[shipment_method]': '2'
+        think-time: 3s
+
+
+      #PAYMENT OPTIONS  
+      - url: 'https://${__P(server)}/phoenix/checkout/payment'
+        method: POST
+        label: 'https://${__P(server)}/phoenix/checkout/payment'
+        extract-regexp:
+            csrfToken: 
+              regexp: name="_csrf_token" .*? value="(.*?)"
+              default: NOT_FOUND
+              match-no: 1 
+              template: $1$
+        headers:
+          Origin: 'https://${__P(server)}'
+          Content-Type: application/x-www-form-urlencoded
+          Referer: 'https://${__P(server)}/phoenix/checkout/payment'
+        body:
+          _csrf_token: ${csrfToken}
+          _utf8: ✓
+          'payment[existing_credit_card_id]': new
+          'payment[existing_payment_type]': ''
+          'payment[existing_paypal_id]': ''
+          'payment[new_credit_card_nonce]': ${__P(nonce)}
+          'payment[new_paypal_nonce]': ''
+          'payment[payment_type]': credit_card
+          'payment[reuse_shipping_address]': 'false'
+          'payment[reuse_shipping_address]': 'true'
+        assert: 
+          - contains: 
+            - Shipping
+            regexp: false
+        think-time: 15s 
+
+          
+      #CONFIRM PURCHASE AND RECEIVE THANK YOU PAGE
+      - url: 'https://${__P(server)}/phoenix/checkout/confirm'
+        method: POST
+        label: 'https://${__P(server)}/phoenix/checkout/confirm'        
+        headers:
+          Origin: 'https://${__P(server)}'
+          Content-Type: application/x-www-form-urlencoded
+          Referer: 'https://${__P(server)}/phoenix/checkout/confirm'
+        body:
+          _csrf_token: ${csrfToken}
+          _utf8: ✓
+        assert: 
+          - contains: 
+            - Thank You
+            regexp: false
+        think-time: 10s    
+       
+
+reporting:
+- module: console
+- module: blazemeter

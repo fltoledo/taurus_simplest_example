@@ -2,4 +2,4 @@
 scenarios:
   get-requests:
     requests:
-      - https://example.com
+      - http://www.phptravels.net

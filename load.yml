@@ -1,7 +1,7 @@
 ---
 execution:
 - scenario: get-requests
-  concurrency: 10
+  concurrency: 5
   ramp-up: 15s
   hold-for: 2m
   iterations: 100

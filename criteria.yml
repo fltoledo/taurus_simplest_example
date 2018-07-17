@@ -4,5 +4,5 @@ reporting:
 - module: blazemeter
 - module: passfail
   criteria:
-  - avg-rt>300ms for 10s, stop as failed
+  - avg-rt>1800ms for 30s, stop as failed
   - fail>50% for 10s, stop as failed
